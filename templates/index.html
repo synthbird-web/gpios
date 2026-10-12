@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPIOS — Bird Field Notebook</title>
+  <meta name="description" content="GPIOS: geo-referenced bird records, field sessions and a worldwide taxonomic catalogue of birds.">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+  <!-- OpenLayers 8.2.0 (loaded from CDN: requires internet) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <aside id="sidebar">
+    <header class="header">
+      <div class="header-text">
+        <h1>GPIOS</h1>
+        <p data-i18n="app.tagline">Geo-referenced bird records and field sessions</p>
+        <p id="user-greeting" class="greeting"></p>
+      </div>
+      <button type="button" id="btn-settings" class="btn-gear" data-i18n-title="settings.open" title="Settings" aria-label="Settings">⚙️</button>
+    </header>
+
+    <div id="offline-banner" class="offline-banner" role="status" hidden>
+      <strong data-i18n="offline.title">No internet connection</strong>
+      <span id="offline-text" data-i18n="offline.body"></span>
+    </div>
+
+    <nav class="tabs">
+      <button type="button" class="tab-btn active" id="btn-tab-new" data-tab="tab-new" data-i18n="tab.new">New session</button>
+      <button type="button" class="tab-btn" id="btn-tab-list" data-tab="tab-list" data-i18n="tab.list">My sessions</button>
+    </nav>
+
+    <!-- Panel 1: new / edit session -->
+    <section id="panel-new" class="content-panel active">
+      <form id="form-new-session" autocomplete="off" onsubmit="return false;">
+
+        <div id="edit-mode-indicator" class="edit-banner" hidden>
+          <div class="edit-banner-info">
+            <span class="edit-banner-tag" data-i18n="edit.tag">✏️ EDITING SESSION</span>
+            <span id="edit-session-title" class="edit-banner-title"></span>
+          </div>
+          <button type="button" class="btn-cancel-edit" id="btn-cancel-edit" data-i18n="edit.cancel" data-i18n-title="edit.cancelTitle">✕ Cancel</button>
+        </div>
+
+        <div class="form-group">
+          <label for="session-title" data-i18n="form.title">Session title</label>
+          <input type="text" id="session-title" maxlength="150" data-i18n-placeholder="form.titlePh">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="session-date" data-i18n="form.date">Date</label>
+            <input type="date" id="session-date">
+          </div>
+          <div class="form-group">
+            <label for="session-time" data-i18n="form.time">Time</label>
+            <input type="time" id="session-time">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="location-search" data-i18n="form.location">Location</label>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="location-search" data-i18n-placeholder="form.locationPh">
+            <div id="location-suggestions" class="suggestions-box" hidden></div>
+          </div>
+          <small class="hint" data-i18n="form.locationHint"></small>
+        </div>
+
+        <div class="form-group">
+          <label for="session-weather" data-i18n="form.weather">Weather conditions</label>
+          <select id="session-weather"></select>
+        </div>
+
+        <hr class="separator">
+
+        <div class="form-group">
+          <label for="bird-search" data-i18n="form.addBird">Add bird</label>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="bird-search" data-i18n-placeholder="form.birdPh">
+            <div id="bird-suggestions" class="suggestions-box" hidden></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group count-group">
+            <label for="bird-count" data-i18n="form.count">Count</label>
+            <input type="number" id="bird-count" value="1" min="1">
+          </div>
+          <div class="form-group">
+            <label for="bird-notes" data-i18n="form.notes">Observation notes</label>
+            <input type="text" id="bird-notes" maxlength="300" data-i18n-placeholder="form.notesPh">
+          </div>
+        </div>
+
+        <button type="button" class="btn-secondary btn-block" id="add-bird-btn" disabled data-i18n="form.addBirdBtn">+ Add bird to the list</button>
+
+        <ul class="birds-list" id="session-birds-list"></ul>
+
+        <div id="coords-display" class="coords-display" data-i18n="form.coordsHint"></div>
+
+        <button type="button" class="btn-primary" id="save-session-btn" disabled data-i18n="form.save">Save session</button>
+      </form>
+    </section>
+
+    <!-- Panel 2: session history -->
+    <section id="panel-list" class="content-panel">
+      <div id="sessions-history-list"></div>
+    </section>
+
+    <!-- Panel 3: session detail -->
+    <section id="panel-detail" class="content-panel">
+      <div id="session-detail-view"></div>
+    </section>
+
+    <footer class="data-management-footer">
+      <div class="data-row">
+        <span class="data-label" data-i18n="data.export">Export data:</span>
+        <div class="data-actions">
+          <a id="export-csv-link" href="/api/backup/export-csv" download class="link-btn">CSV</a>
+          <span class="divider" data-i18n="data.or">or</span>
+          <a href="/api/backup/export-json" download class="link-btn">JSON</a>
+        </div>
+      </div>
+      <div class="data-row">
+        <button type="button" class="import-btn" id="btn-import" data-i18n="data.import">Import JSON backup</button>
+        <input type="file" id="file-import-input" accept=".json,application/json" hidden>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- Map -->
+  <main id="map">
+    <div class="layer-switcher">
+      <label for="base-layer-select"><strong data-i18n="map.label">Map:</strong></label>
+      <select id="base-layer-select">
+        <option value="osm" data-i18n="map.osm">Street map (OSM)</option>
+        <option value="satellite" data-i18n="map.satellite">Satellite (Esri)</option>
+      </select>
+      <button type="button" id="btn-my-area" class="btn-map" data-i18n="map.myArea" data-i18n-title="map.myAreaTitle">My area</button>
+    </div>
+
+    <div id="map-error" class="map-error" hidden data-i18n="offline.noMap"></div>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <div id="map-status-bar" class="map-status-bar" hidden></div>
+  </main>
+
+  <!-- Onboarding / settings modal -->
+  <div id="settings-modal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="modal-header">
+        <img src="/static/icon-192.png" alt="" class="modal-logo" width="44" height="44">
+        <div>
+          <h2 id="settings-title"></h2>
+          <p id="settings-subtitle" class="modal-subtitle"></p>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="set-name" data-i18n="ob.name">Your name</label>
+          <input type="text" id="set-name" maxlength="80" data-i18n-placeholder="ob.namePh">
+        </div>
+
+        <div class="form-group">
+          <span class="label" data-i18n="ob.language">Language</span>
+          <div class="lang-switch" role="radiogroup">
+            <button type="button" class="lang-btn" data-lang="en" role="radio">🇬🇧 English</button>
+            <button type="button" class="lang-btn" data-lang="es" role="radio">🇪🇸 Español</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <span class="label" data-i18n="ob.location">Home area</span>
+          <small class="hint block" data-i18n="ob.locationHelp"></small>
+          <button type="button" id="btn-detect-location" class="btn-secondary btn-block" data-i18n="ob.detect">📍 Detect my location</button>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="set-location-search" data-i18n-placeholder="ob.manualPh">
+            <div id="set-location-suggestions" class="suggestions-box" hidden></div>
+          </div>
+          <div id="set-location-status" class="location-status"></div>
+          <div id="set-location-warning" class="location-warning" hidden>
+            <p id="set-location-warning-text"></p>
+            <button type="button" id="btn-use-anyway" class="btn-secondary" data-i18n="ob.useAnyway">Use it anyway</button>
+          </div>
+        </div>
+
+        <p class="hint" data-i18n="ob.internetNote"></p>
+        <p id="settings-error" class="form-error" hidden data-i18n="ob.required"></p>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btn-settings-cancel" class="btn-secondary" data-i18n="ob.cancel">Cancel</button>
+        <button type="button" id="btn-settings-save" class="btn-primary btn-inline"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
+  <script src="/static/js/i18n.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

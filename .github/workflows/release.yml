@@ -1,0 +1,90 @@
+name: Build and Release GPIOS
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: linux
+            command: npm run build:linux
+            asset_pattern: dist_electron/*.AppImage
+          - os: windows-latest
+            artifact_name: windows
+            command: npm run build:win
+            asset_pattern: dist_electron/*.zip
+          - os: macos-14
+            artifact_name: macos-arm64
+            command: npm run build:mac:arm64
+            asset_pattern: dist_electron/*.zip
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run server integration tests
+        run: npm run test:server
+
+      - name: Build package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ${{ matrix.command }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpios-${{ matrix.artifact_name }}
+          path: ${{ matrix.asset_pattern }}
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist_release
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release_assets
+          find dist_release -type f \( -name "*.AppImage" -o -name "*.zip" \) -exec cp {} release_assets/ \;
+          ls -la release_assets/
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: release_assets/*
+          draft: false
+          prerelease: false
+          name: GPIOS ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          body_path: releases/README.md

@@ -1,0 +1,21 @@
+# Environments & dependencies
+node_modules/
+python_env/
+.venv/
+__pycache__/
+*.pyc
+
+# Distribution & build outputs
+dist_portable/
+dist_electron/
+*.zip
+*.AppImage
+*.deb
+
+# System & temporary files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+.env
+.env.*

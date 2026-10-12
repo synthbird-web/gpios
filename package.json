@@ -1,0 +1,84 @@
+{
+  "name": "gpios",
+  "version": "1.0.0",
+  "description": "GPIOS - Geo-referenced bird records and field notebook",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "serve": "node -e \"require('./electron/server').createServer().start(8000).then(r => console.log('Open ' + r.url))\"",
+    "test:server": "node test_electron_server.js",
+    "build:linux": "electron-builder --linux --publish never",
+    "build:win": "electron-builder --win --publish never && node electron/stamp-win.js",
+    "build:mac": "electron-builder --mac --arm64 --publish never && node electron/stamp-mac.js",
+    "build:mac:arm64": "electron-builder --mac --arm64 --publish never && node electron/stamp-mac.js",
+    "build:all": "npm run build:linux && npm run build:win && npm run build:mac:arm64"
+  },
+  "keywords": [
+    "gpios",
+    "birding",
+    "ornithology",
+    "birds",
+    "field-notebook",
+    "gps",
+    "maps",
+    "sqlite",
+    "electron"
+  ],
+  "author": {
+    "name": "Vision by Data",
+    "url": "https://visionbydata.com"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "sql.js": "^1.14.2"
+  },
+  "devDependencies": {
+    "7zip-bin": "^5.2.0",
+    "archiver": "^7.0.1",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
+    "resedit": "^2.0.1"
+  },
+  "build": {
+    "appId": "com.visionbydata.gpios",
+    "productName": "GPIOS",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "electron/**/*",
+      "templates/**/*",
+      "static/**/*",
+      "gpios.db",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "static/icon-256.png",
+      "category": "Science",
+      "maintainer": "Vision by Data"
+    },
+    "win": {
+      "target": [
+        "zip",
+        "dir"
+      ],
+      "signAndEditExecutable": false,
+      "icon": "static/icon.ico"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "static/icon-512.png",
+      "category": "public.app-category.education"
+    }
+  }
+}
